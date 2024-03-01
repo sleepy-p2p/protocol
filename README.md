@@ -1,9 +1,9 @@
 # Sleepy Protocol 0.1alpha
 
 ## Base protocol
-The sleepy protocol is based on HTTP. This allows it to be implemented in any language and on any platform. Even in a web browser. It is not a protocol for high performance.
+The sleepy protocol is based on HTTP. This allows it to be implemented in any language and on any platform. Even in a web browser. It is not a protocol for high performance, but for compatibility.
 
-The most basic Sleepy peer is a simple HTTP static server that serves the files of the [introduction](introduction/MODULE.md) module.
+The most basic sleepy peer is a simple HTTP static server that serves the files of the [introduction](introduction/MODULE.md) module.
 
 A sleepy peer must support almost all the HTTP 1.1 specification. The Keep-Alive functionality is greatly recommended for performance reasons.
 
@@ -12,6 +12,8 @@ Additionally, the sleepy protocol uses JSON as the main data exchange format.
 The use of HTTP has a base protocol has some limitations:
 - The client and the servers must have a public IP address or be behind a NAT with port forwarding. In this case, the client will be marked as _masked_ and some functionalities will be limited.
    - The sleepy clients can have UPnP support to automatically open the ports in the router.
+
+The description of the protocol is available as OpenAPI 3.0 definition in the [openapi.yaml](https://editor.swagger.io?url=https://raw.githubusercontent.com/sleepy-p2p/protocol/main/openapi.yml) file.
 
 ## Modularity
 The sleepy protocol is modular. Clients must comply with the implementation of the _introduction_ module as a minimum. All other modules are optional.
