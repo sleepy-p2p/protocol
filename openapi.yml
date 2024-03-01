@@ -1,0 +1,242 @@
+openapi: 3.0.3
+info:
+  title: Sleepy Protocol
+  description: Sleepy p2p file sharing protocol
+  version: "1.0"
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+externalDocs:
+  description: Find out more about Sleepy Protocol
+  url: https://github.com/sleepy-p2p/protocol
+
+tags:
+  - name: Introduction
+    description: The introduction module is responsible for the peer discovery and basic information about the peer.
+  - name: Download
+    description: The download module performs the file downloading.
+  - name: Upload
+    description: The upload module is responsible for the file sharing and upload.
+  - name: Router
+    description: The router module handle operations related to the discovery of new peers.
+  - name: Search
+    description: The search module performs the search for files in the network.
+  - name: Board
+    description: The board module is responsible for the publication of boards and topics, and the subscription to them.
+
+paths:
+  /introduction/peer.json:
+    get:
+      summary: Get peer information
+      description: Get basic information about the peer
+      operationId: getIntroductionClient
+      tags:
+        - Introduction
+      responses:
+        '200':
+          description: The information about the remote peer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Peer'
+  /files/{hash}/info.json:
+    get:
+      summary: Get file information
+      description: Get the information about the file
+      operationId: getFileInformation
+      tags:
+        - Download
+      parameters:
+        - name: hash
+          in: path
+          required: true
+          description: The hash of the file
+          schema:
+            type: string
+            format: sha1
+      responses:
+        '200':
+          description: The information about the file
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SharedFile'
+  /files/{hash}/{filename}:
+    get:
+      summary: Download file
+      description: Download the whole file or a part of it. The client can be rejected if not set the `Range` header correctly.
+      operationId: downloadFile
+      tags:
+        - Download
+      parameters:
+        - name: hash
+          in: path
+          required: true
+          description: The hash of the file
+          schema:
+            type: string
+            format: sha1
+        - name: filename
+          in: path
+          required: true
+          allowEmptyValue: true
+          description: The filename of the file.
+            In a static client, the filename must match with the filename provided in the `info.json` file.
+            In a dynamic client, the filename can be any string (or empty) because the server uses the hash to identify the file.
+          schema:
+            type: string
+        - name: Range
+          in: header
+          required: false
+          description: The range of the file to download. If not present, the whole file will be downloaded.
+          schema:
+            type: string
+            example: "bytes=0-1023"
+      responses:
+        '200':
+          description: The file
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '206':
+          description: The chunk of the file
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: The file is not available
+          content:
+            application/json:
+              schema:
+                type: object
+        '416':
+          description: The chunk is not available
+          content:
+            application/json:
+              schema:
+                type: object
+  /files/{hash}:
+    post:
+      summary: Share file
+      description: Share a file with the network
+      operationId: shareFile
+      tags:
+        - Upload
+      parameters:
+        - name: hash
+          in: path
+          required: true
+          description: The hash of the file
+          schema:
+            type: string
+            format: sha1
+        - name: Range
+          in: header
+          required: true
+          description: The range of the chunks to share.
+          schema:
+            type: string
+            example: "bytes=0-1023"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SharedFile'
+      responses:
+        '200':
+          description: The chunk is shared correctly
+          content:
+            application/json:
+              schema:
+                type: object
+
+components:
+  schemas:
+    Peer:
+      type: object
+      properties:
+        version:
+          type: string
+          example: 1.0
+          description: The version of the protocol implemented by the client.
+        modules:
+          type: array
+          items:
+            type: string
+          example: [ "introduction", "download" ]
+          description: The list of modules implemented by the client.
+        static:
+          type: boolean
+          example: false
+          description: If the client is static. If true, the client only accepts connections but does not initiate them. In other words, it is a pure HTTP server.
+        port:
+          type: integer
+          example: 8080
+          description: The port where the client is listening for incoming connections. If not present, the peer will be considered as _shadow_ client.
+        agent:
+          type: string
+          example: sleepy/0.1alpha
+          description: The name and version of the client, formatted as `name/version`. If not present, the header user agent will be used.
+        identity:
+          type: string
+          description: The public key of the client. If the client wants to be anonymous, it can omit this field.
+        publicIp:
+          type: string
+          example: 192.168.1.34
+          description: The public IP of the client. If the client wants to specify the public IP, it can include this field. If not present, the IP of the connection will be used.
+      required: [ version, modules, static ]
+
+    SharedFileResume:
+      type: object
+      properties:
+        filename:
+          type: string
+          example: "my_file.txt"
+          description: The filename of the file.
+        hash:
+          type: string
+          format: sha1
+          example: "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3"
+          description: The SHA1 hash of the whole file.
+        size:
+          type: integer
+          example: 1024
+          description: The size of the file in bytes.
+        complete:
+          type: boolean
+          example: true
+          description: If the file is complete on this peer.
+
+    SharedFile:
+      allOf:
+        - $ref: '#/components/schemas/SharedFileResume'
+        - type: object
+          properties:
+            chunks:
+              type: array
+              items:
+                $ref: '#/components/schemas/FileChunk'
+              description: The list of chunks of the file.
+
+    FileChunk:
+      type: object
+      properties:
+        total:
+          type: integer
+          example: 10
+          description: The total number of chunks in the file.
+        size:
+          type: integer
+          example: 1024
+          description: The size of each chunk in bytes.
+        hash:
+          type: string
+          format: sha1
+          example: "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3"
+          description: The SHA1 hash of the chunk.

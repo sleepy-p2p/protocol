@@ -1,0 +1,5 @@
+# IDE's and text editors
+/.idea
+/*.iml
+/modules.xml
+/vcs.xml
