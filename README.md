@@ -3,17 +3,25 @@
 ## Base protocol
 The sleepy protocol is based on HTTP. This allows it to be implemented in any language and on any platform. Even in a web browser. It is not a protocol for high performance, but for compatibility.
 
-The most basic sleepy peer is a simple HTTP static server that serves the files of the [introduction](introduction/MODULE.md) module.
-
 A sleepy peer must support almost all the HTTP 1.1 specification. The Keep-Alive functionality is greatly recommended for performance reasons.
 
-Additionally, the sleepy protocol uses JSON as the main data exchange format.
+Additionally, the sleepy protocol uses JSON as the main metadata exchange format.
 
-The use of HTTP has a base protocol has some limitations:
-- The client and the servers must have a public IP address or be behind a NAT with port forwarding. In this case, the client will be marked as _masked_ and some functionalities will be limited.
-   - The sleepy clients can have UPnP support to automatically open the ports in the router.
+The most basic sleepy peer is a simple HTTP server that serves the files of the [introduction](introduction/MODULE.md) and
+has public files matching the [upload](upload/MODULE.md) module filename schema. This type of peer is called _passive_ peer.
+The objective of this type of peer is to be able to share files inside sleepy network in the easiest way possible, integrating with existent web servers and applications.
+
+An advanced sleepy peer has the ability to handle HTTP requests and initiate them already. In other words, is a http client and server at the same time. 
+This type of peer is called _active_ peer and must handle most advanced behaviors.
 
 The description of the protocol is available as OpenAPI 3.0 definition in the [openapi.yml](https://editor.swagger.io?url=https://raw.githubusercontent.com/sleepy-p2p/protocol/main/openapi.yml) file.
+Each request and response describe different behaviors and functionalities of the protocol that must be implemented by _passive_ or _active_ peers.
+
+## Limitations
+The use of HTTP has a base protocol has some limitations:
+- The peers must have a public IP address or be behind a NAT with port forwarding. If an _active_ peer connect to another _active_ peer, and the other client can't connect back, the second
+peer will consider the first peer as _masked_ and some functionalities will be disabled or limited with priority to the _active_ peers that can connect to the other peer.
+   - The sleepy clients can have UPnP support to automatically open the ports in the router.
 
 ## Modularity
 The sleepy protocol is modular. Clients must comply with the implementation of the _introduction_ module as a minimum. All other modules are optional.

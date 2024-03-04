@@ -17,7 +17,7 @@ tags:
   - name: Download
     description: The download module performs the file downloading.
   - name: Upload
-    description: The upload module is responsible for the file sharing and upload.
+    description: The upload module permits to upload files to the sleepy peer even if the client is behind a NAT.
   - name: Router
     description: The router module handle operations related to the discovery of new peers.
   - name: Search
@@ -66,9 +66,9 @@ paths:
     get:
       summary: Download file
       description: Download the whole file or a part of it. The client can be rejected if not set the `Range` header correctly.
-      operationId: downloadFile
+      operationId: shareFile
       tags:
-        - Download
+        - Upload
       parameters:
         - name: hash
           in: path
@@ -82,14 +82,16 @@ paths:
           required: true
           allowEmptyValue: true
           description: The filename of the file.
-            In a static client, the filename must match with the filename provided in the `info.json` file.
-            In a dynamic client, the filename can be any string (or empty) because the server uses the hash to identify the file.
+            In static peers, the filename must match with the filename provided in the `info.json` file.
+            In dynamic peers, the filename can be any string (or empty) because the server peer uses the hash to identify the file.
           schema:
             type: string
         - name: Range
           in: header
           required: false
           description: The range of the file to download. If not present, the whole file will be downloaded.
+            In static server peers, the range management is optional. The client peer must handle the correct behaviour if server peer does not support the range.
+            In dynamic server peers, the request can be rejected if the range exceeds the chunk size.
           schema:
             type: string
             example: "bytes=0-1023"
@@ -108,49 +110,26 @@ paths:
               schema:
                 type: string
                 format: binary
+        '400':
+          description: Malformed request
+          content:
+            application/json:
+              schema:
+                type: object
         '404':
           description: The file is not available
           content:
             application/json:
               schema:
                 type: object
-        '416':
-          description: The chunk is not available
+        '409':
+          description: The file is available but can be served due to internal peer management reasons described in the response body
           content:
             application/json:
               schema:
                 type: object
-  /files/{hash}:
-    post:
-      summary: Share file
-      description: Share a file with the network
-      operationId: shareFile
-      tags:
-        - Upload
-      parameters:
-        - name: hash
-          in: path
-          required: true
-          description: The hash of the file
-          schema:
-            type: string
-            format: sha1
-        - name: Range
-          in: header
-          required: true
-          description: The range of the chunks to share.
-          schema:
-            type: string
-            example: "bytes=0-1023"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SharedFile'
-      responses:
-        '200':
-          description: The chunk is shared correctly
+        '416':
+          description: The chunk is not available
           content:
             application/json:
               schema:
@@ -174,7 +153,8 @@ components:
         static:
           type: boolean
           example: false
-          description: If the client is static. If true, the client only accepts connections but does not initiate them. In other words, it is a pure HTTP server.
+          description: If the peer is static. If true, the peer only accepts connections but does not initiate them. In other words, it is a pure HTTP server.
+            The communication between peers is slightly different in static or dynamic mode.
         port:
           type: integer
           example: 8080
@@ -218,6 +198,10 @@ components:
         - $ref: '#/components/schemas/SharedFileResume'
         - type: object
           properties:
+            chunkSize:
+              type: integer
+              example: 1024
+              description: The size of the chunks of the file in bytes.
             chunks:
               type: array
               items:
@@ -230,11 +214,7 @@ components:
         total:
           type: integer
           example: 10
-          description: The total number of chunks in the file.
-        size:
-          type: integer
-          example: 1024
-          description: The size of each chunk in bytes.
+          description: The index of the chunk in the file. The first chunk is 0.
         hash:
           type: string
           format: sha1
